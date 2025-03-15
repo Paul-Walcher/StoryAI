@@ -1,0 +1,10 @@
+
+{
+	
+	"model": "deepseek-r1",
+	"max_tokens": 32000,
+	"auto_load": true,
+	"max_fact_size": 4000,
+	"fact_lifespan": 30
+
+}
