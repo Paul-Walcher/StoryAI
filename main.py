@@ -3,10 +3,13 @@
 import ollama
 import json
 import os
+import tiktoken
+import re
 
 #own module imports
 from ascii import *
 from commands import *
+
 
 #constants
 PROMPT_SIGN: str = '>>>'
@@ -252,6 +255,8 @@ def manage_history(load_history):
 
 	global CURRENT_DIRECTORY
 	global HISTORY
+	global MEMORY
+	global NARRATOR
 
 	if not HISTORY:
 		#fill the history
@@ -259,13 +264,13 @@ def manage_history(load_history):
 
 			data = json.load(f)
 
-			HISTORY.append({"role": "user", "content": data["narrator"]})
+			NARRATOR = {"role": "user", "content": data["narrator"]}
 
 		with open(os.path.join(CURRENT_DIRECTORY, "memory.json")) as f:
 
 			data = json.load(f)
 
-			HISTORY.append({"role": "user", "content": data["memory"]})
+			MEMORY = {"role": "user", "content": data["memory"]}
 
 
 		load_in_facts()
@@ -273,6 +278,55 @@ def manage_history(load_history):
 		HISTORY.extend(load_history)
 
 
+def find_triggers(message: str) -> list[str]:
+
+
+	found_triggers: list[str] = []
+
+	for trigger in FACT_REFS:
+
+		if re.match(".*" + trigger + ".*", message, re.IGNORECASE):
+
+			found_triggers.append(FACT_REFS[trigger])
+
+	return found_triggers
+
+def resize(post: list):
+
+	"""
+	resizes the post to fit into the token limit
+	"""
+
+	enc = tiktoken.get_encoding("cl100k_base") 
+
+	size = 0
+
+	for comment in post:
+
+		size += len(enc.encode(comment["content"]))
+
+	if size > MAX_TOKENS:
+
+		#we need to shrink it down
+
+		overflow = MAX_TOKENS - size
+
+		count = 0
+		post_index = 2
+
+		while post_index < len(post) and count < overflow:
+
+			count += len(enc.encode(post[post_index]["content"]))
+			post_index += 1
+
+		to_delete = post_index - 2
+
+		for i in range(to_delete):
+			post.pop(2)
+
+	return post
+
+	
 
 if __name__ == "__main__":
 
@@ -310,19 +364,49 @@ if __name__ == "__main__":
 				talking = False
 				break
 
+			#now creating the message
+
+
+			#now editing the new facts in
+			fact_triggers = find_triggers(message)
+			#finding all facts
+			#then providing them
+
+			text = ""
+
+			if fact_triggers:
+
+				text += "Here are some extra facts about the world or/and environment."\
+						"They will be listed as: corrsponding name: Information, then four empty lines.\n\n"
+
+				for fact in fact_triggers:
+
+					text += fact + ": " + FACTS[fact]["content"] + "\n\n\n\n"
+
+			message = text + message
+
+			HISTORY.append({"role": "user", "content": message})
+
+			post = [NARRATOR] + [MEMORY] + HISTORY
+
+			#now chugging old messages
+
+			post = resize(post)
+
 			stream = ollama.chat(
 						    model=MODEL,
-						    messages=HISTORY + [{"role": "user", "content": message}],
+						    messages=post,
 						    stream=True,
 						    options={"num_ctx": MAX_TOKENS}
 						)
 
-			print("sent")
 			answer = ""
 			for chunk in stream:
 				answer += chunk['message']['content']
 			
 			print(answer)
+
+			HISTORY.append({"role": "assistant", "content": answer})
 
 		
 

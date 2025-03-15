@@ -1,6 +1,12 @@
 
 {
 	"facts": [
-			
+			{	
+				"name": "Bernard",
+				"content": "Bernard is a 20 year old man, who loves football",
+				"triggers": ["Bernard"],
+				"rank": 20
+				
+			}
 		]
 }
