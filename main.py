@@ -326,7 +326,15 @@ def resize(post: list):
 
 	return post
 
-	
+def save_data():
+
+	data = {"history": HISTORY}
+
+	with open(os.path.join(CURRENT_DIRECTORY, "history.json"), "w") as f:
+
+		print(data)
+		json.dump(data, f)
+
 
 if __name__ == "__main__":
 
@@ -357,11 +365,13 @@ if __name__ == "__main__":
 
 				running = False
 				talking = False
+				save_data()
 				break
 
 			if (message == "/switch"):
 
 				talking = False
+				save_data()
 				break
 
 			#now creating the message
